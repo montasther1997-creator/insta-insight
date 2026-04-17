@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حذف البيانات - InstaInsight</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            background: #0A0A0F;
+            color: #E0E0E0;
+            line-height: 1.8;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        h1 {
+            background: linear-gradient(135deg, #C77DFF, #FF6B9D);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        .app-name {
+            color: #C77DFF;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #C77DFF;
+            font-size: 1.3em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        p, li {
+            color: #CCC;
+            margin-bottom: 10px;
+        }
+        ul, ol {
+            padding-right: 25px;
+            margin-bottom: 15px;
+        }
+        li { margin-bottom: 8px; }
+        .highlight {
+            background: rgba(199, 125, 255, 0.1);
+            border-right: 3px solid #C77DFF;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .warning {
+            background: rgba(255, 107, 157, 0.1);
+            border-right: 3px solid #FF6B9D;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .step-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid #222;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        .step-number {
+            background: linear-gradient(135deg, #C77DFF, #FF6B9D);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        a { color: #FF6B9D; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #C77DFF, #FF6B9D);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-size: 1.1em;
+            margin-top: 20px;
+            transition: opacity 0.3s;
+        }
+        .btn:hover {
+            opacity: 0.85;
+            text-decoration: none;
+        }
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #222;
+            color: #666;
+            font-size: 0.85em;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>طلب حذف البيانات</h1>
+        <div class="app-name">InstaInsight - محلل حسابات إنستغرام الذكي</div>
+
+        <div class="highlight">
+            <p>نحترم حقك في التحكم ببياناتك. يمكنك طلب حذف جميع بياناتك المرتبطة بحسابك في أي وقت.</p>
+        </div>
+
+        <h2>ما البيانات التي سيتم حذفها؟</h2>
+        <p>عند طلب حذف بياناتك، سنقوم بحذف:</p>
+        <ul>
+            <li>معلومات ملفك الشخصي المخزنة (اسم المستخدم، صورة الحساب).</li>
+            <li>رمز الوصول (Access Token) الخاص بحسابك.</li>
+            <li>جميع التحليلات والإحصائيات المحفوظة.</li>
+            <li>سجل التوصيات والتقارير السابقة.</li>
+            <li>أي بيانات مؤقتة مخزنة على خوادمنا.</li>
+        </ul>
+
+        <h2>كيفية طلب حذف البيانات</h2>
+
+        <div class="step-card">
+            <p><span class="step-number">1</span> <strong>عبر البريد الإلكتروني</strong></p>
+            <p>أرسل بريداً إلكترونياً إلى <a href="mailto:ddhsv5392@gmail.com">ddhsv5392@gmail.com</a> مع ذكر:</p>
+            <ul>
+                <li>اسم المستخدم على إنستغرام</li>
+                <li>عنوان "طلب حذف بيانات InstaInsight"</li>
+            </ul>
+        </div>
+
+        <div class="step-card">
+            <p><span class="step-number">2</span> <strong>عبر إعدادات إنستغرام</strong></p>
+            <p>يمكنك أيضاً إلغاء ربط التطبيق مباشرة:</p>
+            <ol>
+                <li>افتح تطبيق إنستغرام</li>
+                <li>اذهب إلى الإعدادات → الأمان → التطبيقات والمواقع</li>
+                <li>ابحث عن InstaInsight</li>
+                <li>اضغط على "إزالة"</li>
+            </ol>
+            <p>عند إلغاء الربط، سيتم إخطارنا تلقائياً وسنحذف بياناتك.</p>
+        </div>
+
+        <h2>مدة معالجة الطلب</h2>
+        <div class="warning">
+            <p>سيتم معالجة طلبك وحذف جميع بياناتك خلال <strong>30 يوماً</strong> كحد أقصى من تاريخ استلام الطلب. في معظم الحالات، يتم الحذف خلال 48 ساعة.</p>
+        </div>
+
+        <h2>تأكيد الحذف</h2>
+        <p>بعد إتمام عملية الحذف، سنرسل لك رسالة تأكيد عبر البريد الإلكتروني (إذا تم الطلب عبر البريد).</p>
+
+        <h2>ملاحظات مهمة</h2>
+        <ul>
+            <li>حذف البيانات عملية <strong>لا يمكن التراجع عنها</strong>.</li>
+            <li>بعد الحذف، ستحتاج لتسجيل الدخول مجدداً إذا أردت استخدام التطبيق.</li>
+            <li>البيانات المخزنة محلياً على جهازك (Cache) يمكنك حذفها بمسح بيانات التطبيق من إعدادات هاتفك.</li>
+        </ul>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="mailto:ddhsv5392@gmail.com?subject=طلب حذف بيانات InstaInsight" class="btn">
+                إرسال طلب حذف البيانات
+            </a>
+        </div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="privacy-policy.html">العودة لسياسة الخصوصية</a>
+        </div>
+
+        <div class="footer">
+            <p>&copy; 2026 InstaInsight. جميع الحقوق محفوظة.</p>
+        </div>
+    </div>
+</body>
+</html>
