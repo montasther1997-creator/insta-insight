@@ -23,7 +23,7 @@ final mediaProvider = FutureProvider<List<PostModel>>((ref) async {
 
   try {
     final service = ref.read(instagramServiceProvider);
-    final rawMedia = await service.fetchUserMedia(user.accessToken);
+    final rawMedia = await service.fetchUserMedia(user.accessToken, igUserId: user.instagramId);
     final posts = service.parseMediaToModels(rawMedia, user.id);
 
     await cache.cacheInstagramData(

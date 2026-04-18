@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>InstaInsight - Redirecting...</title>
+    <style>
+        body {
+            background: #0A0A0F;
+            color: #E0E0E0;
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .loader {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #C77DFF;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        h2 { color: #C77DFF; }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="loader"></div>
+        <h2>جاري التحويل للتطبيق...</h2>
+        <p>Redirecting to InstaInsight app...</p>
+    </div>
+    <script>
+        // Get the full query string from Facebook callback
+        var params = window.location.search;
+        // Redirect to the app's custom scheme
+        var appUrl = 'io.supabase.instainsight://login-callback' + params;
+        window.location.href = appUrl;
+
+        // Fallback message if redirect doesn't work after 3 seconds
+        setTimeout(function() {
+            document.body.innerHTML = '<div style="padding:40px">' +
+                '<h2 style="color:#C77DFF">افتح التطبيق يدوياً</h2>' +
+                '<p>إذا لم يتم التحويل تلقائياً، افتح تطبيق InstaInsight من هاتفك.</p>' +
+                '<p style="color:#888;font-size:0.85em;word-break:break-all">Debug: ' + appUrl + '</p>' +
+                '</div>';
+        }, 3000);
+    </script>
+</body>
+</html>

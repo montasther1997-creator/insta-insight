@@ -9,10 +9,10 @@ class InstagramConfig {
   static String get testToken => dotenv.env['INSTAGRAM_TEST_TOKEN'] ?? '';
   static bool get hasTestToken => testToken.isNotEmpty;
 
-  static const String authUrl = 'https://api.instagram.com/oauth/authorize';
-  static const String tokenUrl = 'https://api.instagram.com/oauth/access_token';
-  static const String graphUrl = 'https://graph.instagram.com';
-  static const String graphFbUrl = 'https://graph.facebook.com/v18.0';
+  /// Facebook Login OAuth (required for Instagram Graph API)
+  static const String authUrl = 'https://www.facebook.com/v21.0/dialog/oauth';
+  static const String tokenUrl = 'https://graph.facebook.com/v21.0/oauth/access_token';
+  static const String graphUrl = 'https://graph.facebook.com/v21.0';
 
   static const List<String> scopes = [
     'instagram_basic',

@@ -6,10 +6,14 @@ import '../models/post_model.dart';
 class InstagramService {
   final Dio _dio = Dio();
 
-  /// Fetch user's media (posts/reels)
-  Future<List<Map<String, dynamic>>> fetchUserMedia(String accessToken, {int limit = 50}) async {
+  /// Fetch user's media (posts/reels) via Instagram Graph API
+  Future<List<Map<String, dynamic>>> fetchUserMedia(String accessToken, {String? igUserId, int limit = 50}) async {
+    final endpoint = igUserId != null
+        ? '${InstagramConfig.graphUrl}/$igUserId/media'
+        : '${InstagramConfig.graphUrl}/me/media';
+
     final response = await _dio.get(
-      '${InstagramConfig.graphUrl}/me/media',
+      endpoint,
       queryParameters: {
         'fields': 'id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count',
         'limit': limit,
@@ -63,7 +67,7 @@ class InstagramService {
   ) async {
     try {
       final response = await _dio.get(
-        '${InstagramConfig.graphFbUrl}/$igUserId/insights',
+        '${InstagramConfig.graphUrl}/$igUserId/insights',
         queryParameters: {
           'metric': 'follower_demographics',
           'period': 'lifetime',
@@ -96,7 +100,7 @@ class InstagramService {
       final until = DateTime.now();
 
       final response = await _dio.get(
-        '${InstagramConfig.graphFbUrl}/$igUserId/insights',
+        '${InstagramConfig.graphUrl}/$igUserId/insights',
         queryParameters: {
           'metric': 'follower_count',
           'period': 'day',

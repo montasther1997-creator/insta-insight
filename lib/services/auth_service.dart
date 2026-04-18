@@ -23,8 +23,15 @@ class AuthService {
     debugPrint('🔧 Using test token mode — skipping OAuth');
     final token = InstagramConfig.testToken;
 
-    // Get user profile directly with the test token
-    final profile = await _getUserProfile(token);
+    // Get user profile directly with the test token (test tokens use /me endpoint)
+    final response = await _dio.get(
+      '${InstagramConfig.graphUrl}/me',
+      queryParameters: {
+        'fields': 'id,username,name,profile_picture_url,followers_count,media_count',
+        'access_token': token,
+      },
+    );
+    final profile = response.data as Map<String, dynamic>;
     final userId = profile['id'].toString();
 
     // Save user to Supabase
@@ -41,9 +48,9 @@ class AuthService {
     return user;
   }
 
-  /// Login using full OAuth flow (production mode)
+  /// Login using Facebook Login OAuth flow (production mode)
   Future<UserModel?> _loginWithOAuth() async {
-    // 1. Open Instagram OAuth page
+    // 1. Open Facebook Login page
     final result = await FlutterWebAuth2.authenticate(
       url: InstagramConfig.authorizationUrl,
       callbackUrlScheme: 'io.supabase.instainsight',
@@ -54,20 +61,22 @@ class AuthService {
     final code = uri.queryParameters['code'];
     if (code == null) throw Exception('لم يتم الحصول على رمز التفويض');
 
-    // 3. Exchange code for access token
-    final tokenData = await _exchangeCodeForToken(code);
-    final accessToken = tokenData['access_token'] as String;
-    final userId = tokenData['user_id'].toString();
+    // 3. Exchange code for Facebook access token
+    final accessToken = await _exchangeCodeForToken(code);
 
     // 4. Get long-lived token
     final longLivedToken = await _getLongLivedToken(accessToken);
 
-    // 5. Get user profile from Instagram
-    final profile = await _getUserProfile(longLivedToken);
+    // 5. Get Instagram Business Account via Facebook Pages
+    final igAccount = await _getInstagramBusinessAccount(longLivedToken);
+    final igUserId = igAccount['id'] as String;
 
-    // 6. Save user to Supabase
+    // 6. Get Instagram profile
+    final profile = await _getUserProfile(igUserId, longLivedToken);
+
+    // 7. Save user to Supabase
     final user = await _saveUser(
-      instagramId: userId,
+      instagramId: igUserId,
       accessToken: longLivedToken,
       username: profile['username'] ?? '',
       fullName: profile['name'] ?? '',
@@ -75,42 +84,68 @@ class AuthService {
       followersCount: profile['followers_count'] ?? 0,
     );
 
-    await _storeInstagramId(userId);
+    await _storeInstagramId(igUserId);
     return user;
   }
 
-  /// Exchange authorization code for short-lived access token
-  Future<Map<String, dynamic>> _exchangeCodeForToken(String code) async {
-    final response = await _dio.post(
+  /// Exchange authorization code for Facebook access token
+  Future<String> _exchangeCodeForToken(String code) async {
+    final response = await _dio.get(
       InstagramConfig.tokenUrl,
-      data: FormData.fromMap({
+      queryParameters: {
         'client_id': InstagramConfig.appId,
         'client_secret': InstagramConfig.appSecret,
-        'grant_type': 'authorization_code',
         'redirect_uri': InstagramConfig.redirectUri,
         'code': code,
-      }),
-    );
-    return response.data as Map<String, dynamic>;
-  }
-
-  /// Exchange short-lived token for long-lived token (60 days)
-  Future<String> _getLongLivedToken(String shortLivedToken) async {
-    final response = await _dio.get(
-      '${InstagramConfig.graphUrl}/access_token',
-      queryParameters: {
-        'grant_type': 'ig_exchange_token',
-        'client_secret': InstagramConfig.appSecret,
-        'access_token': shortLivedToken,
       },
     );
     return response.data['access_token'] as String;
   }
 
-  /// Get user profile from Instagram Graph API
-  Future<Map<String, dynamic>> _getUserProfile(String accessToken) async {
+  /// Exchange short-lived token for long-lived token (60 days)
+  Future<String> _getLongLivedToken(String shortLivedToken) async {
     final response = await _dio.get(
-      '${InstagramConfig.graphUrl}/me',
+      '${InstagramConfig.graphUrl}/oauth/access_token',
+      queryParameters: {
+        'grant_type': 'fb_exchange_token',
+        'client_id': InstagramConfig.appId,
+        'client_secret': InstagramConfig.appSecret,
+        'fb_exchange_token': shortLivedToken,
+      },
+    );
+    return response.data['access_token'] as String;
+  }
+
+  /// Get Instagram Business Account ID from Facebook Pages
+  Future<Map<String, dynamic>> _getInstagramBusinessAccount(String accessToken) async {
+    // Get user's Facebook Pages
+    final pagesResponse = await _dio.get(
+      '${InstagramConfig.graphUrl}/me/accounts',
+      queryParameters: {
+        'fields': 'id,name,instagram_business_account',
+        'access_token': accessToken,
+      },
+    );
+
+    final pages = pagesResponse.data['data'] as List;
+    if (pages.isEmpty) {
+      throw Exception('لا توجد صفحات فيسبوك مرتبطة بحسابك. تحتاج ربط صفحة فيسبوك بحساب إنستغرام Business/Creator.');
+    }
+
+    // Find the page with an Instagram Business Account
+    for (final page in pages) {
+      if (page['instagram_business_account'] != null) {
+        return page['instagram_business_account'] as Map<String, dynamic>;
+      }
+    }
+
+    throw Exception('لا يوجد حساب إنستغرام Business/Creator مرتبط بصفحات فيسبوك الخاصة بك.');
+  }
+
+  /// Get user profile from Instagram Graph API
+  Future<Map<String, dynamic>> _getUserProfile(String igUserId, String accessToken) async {
+    final response = await _dio.get(
+      '${InstagramConfig.graphUrl}/$igUserId',
       queryParameters: {
         'fields': 'id,username,name,profile_picture_url,followers_count,media_count',
         'access_token': accessToken,
@@ -190,10 +225,12 @@ class AuthService {
 
     try {
       final response = await _dio.get(
-        '${InstagramConfig.graphUrl}/refresh_access_token',
+        '${InstagramConfig.graphUrl}/oauth/access_token',
         queryParameters: {
-          'grant_type': 'ig_refresh_token',
-          'access_token': user.accessToken,
+          'grant_type': 'fb_exchange_token',
+          'client_id': InstagramConfig.appId,
+          'client_secret': InstagramConfig.appSecret,
+          'fb_exchange_token': user.accessToken,
         },
       );
 
