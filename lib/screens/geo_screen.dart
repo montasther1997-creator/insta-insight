@@ -30,14 +30,14 @@ class _GeoScreenState extends ConsumerState<GeoScreen>
   }
 
   static const List<Color> _barColors = [
-    AppColors.accentPurple,
-    AppColors.accentPink,
-    AppColors.accentBlue,
-    AppColors.accentGreen,
-    AppColors.accentAmber,
-    Color(0xFF9B59B6),
-    Color(0xFF1ABC9C),
-    Color(0xFF95A5A6),
+    AppColors.accentGold,
+    AppColors.accentGoldBright,
+    AppColors.accentAluminum,
+    AppColors.accentGold,
+    AppColors.accentGoldBright,
+    AppColors.accentAluminum,
+    AppColors.accentGold,
+    AppColors.accentGoldBright,
   ];
 
   @override
@@ -54,8 +54,8 @@ class _GeoScreenState extends ConsumerState<GeoScreen>
         automaticallyImplyLeading: false,
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppColors.accentPurple,
-          labelColor: AppColors.accentPurple,
+          indicatorColor: AppColors.accentGold,
+          labelColor: AppColors.accentGold,
           unselectedLabelColor: AppColors.muted,
           tabs: const [
             Tab(text: 'حسب الدولة'),

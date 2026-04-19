@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../config/app_theme.dart';
+import '../utils/tap_feedback.dart';
+import 'glass.dart';
 
+/// Glass suggestion card with priority stripe + soft gradient icon.
 class SuggestionCard extends StatelessWidget {
   final String title;
   final String description;
   final String? reason;
   final String priority;
+  final String? hashtags;
+  final String? estimatedViews;
   final int index;
 
   const SuggestionCard({
@@ -14,134 +20,256 @@ class SuggestionCard extends StatelessWidget {
     required this.description,
     this.reason,
     this.priority = 'medium',
+    this.hashtags,
+    this.estimatedViews,
     this.index = 0,
   });
 
   Color get _priorityColor {
     switch (priority.toLowerCase()) {
       case 'high':
-        return AppColors.accentPink;
+        return AppColors.bad;
       case 'medium':
-        return AppColors.accentAmber;
+      case 'med':
+        return AppColors.warn;
       case 'low':
-        return AppColors.accentBlue;
+        return AppColors.good;
       default:
-        return AppColors.accentAmber;
+        return AppColors.warn;
     }
   }
 
   String get _priorityLabel {
     switch (priority.toLowerCase()) {
       case 'high':
-        return 'أولوية عالية';
+        return 'عالية';
       case 'medium':
-        return 'أولوية متوسطة';
+      case 'med':
+        return 'متوسطة';
       case 'low':
-        return 'أولوية منخفضة';
+        return 'منخفضة';
       default:
         return priority;
     }
   }
 
+  IconData get _priorityIcon {
+    switch (priority.toLowerCase()) {
+      case 'high':
+        return Icons.local_fire_department;
+      case 'medium':
+      case 'med':
+        return Icons.auto_awesome;
+      default:
+        return Icons.lightbulb_outline;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border(
-          right: BorderSide(color: _priorityColor, width: 3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Stack(
         children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: _priorityColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: _priorityColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppColors.text,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _priorityColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _priorityLabel,
-                  style: TextStyle(
-                    color: _priorityColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Description
-          Text(
-            description,
-            style: const TextStyle(
-              color: AppColors.text,
-              fontSize: 13,
-              height: 1.5,
-            ),
-          ),
-          // Reason
-          if (reason != null && reason!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Row(
+          Glass(
+            radius: 20,
+            padding: const EdgeInsets.fromLTRB(16, 14, 20, 14),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.lightbulb_outline,
-                  size: 14,
-                  color: AppColors.accentAmber,
+                GlassIconBadge(
+                  icon: _priorityIcon,
+                  size: 36,
+                  iconSize: 16,
+                  color: AppColors.accentB,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    reason!,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                      height: 1.4,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      GlassChip(
+                        color: _priorityColor,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        child: Text(
+                          _priorityLabel,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: _priorityColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: AppColors.text,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          color: AppColors.textSoft,
+                          fontSize: 11.5,
+                          height: 1.6,
+                        ),
+                      ),
+                      if (reason != null && reason!.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.lightbulb_outline,
+                                size: 12, color: AppColors.warn),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                reason!,
+                                style: const TextStyle(
+                                  color: AppColors.muted,
+                                  fontSize: 11,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      if (hashtags != null && hashtags!.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: AppColors.glassBorder,
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  hashtags!,
+                                  style: const TextStyle(
+                                    color: AppColors.accentA,
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  TapFeedback.light();
+                                  Clipboard.setData(
+                                      ClipboardData(text: hashtags!));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('تم نسخ الهاشتاقات'),
+                                      duration: Duration(seconds: 1),
+                                      backgroundColor: AppColors.good,
+                                    ),
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(6),
+                                child: const Padding(
+                                  padding: EdgeInsets.all(4),
+                                  child: Icon(Icons.copy,
+                                      size: 14, color: AppColors.accentA),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.only(top: 10),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: AppColors.line,
+                              width: 0.5,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            if (estimatedViews != null &&
+                                estimatedViews!.isNotEmpty)
+                              Row(
+                                children: [
+                                  const Icon(Icons.trending_up,
+                                      size: 12, color: AppColors.good),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'مشاهدات متوقعة: $estimatedViews',
+                                    style: const TextStyle(
+                                      color: AppColors.good,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              const SizedBox(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 5),
+                              decoration: BoxDecoration(
+                                gradient: AppColors.brandGradient,
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.accentB
+                                        .withValues(alpha: 0.67),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                    spreadRadius: -3,
+                                  ),
+                                ],
+                              ),
+                              child: const Text(
+                                'طبّق',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ],
+          ),
+          // Priority stripe on the right edge (RTL-aware: visually on the inner edge).
+          Positioned(
+            top: 14,
+            bottom: 14,
+            right: 0,
+            child: Container(
+              width: 3,
+              decoration: BoxDecoration(
+                color: _priorityColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
         ],
       ),
     );

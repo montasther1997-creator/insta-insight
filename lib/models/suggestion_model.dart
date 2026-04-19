@@ -51,6 +51,9 @@ class TrendingAudio {
   final List<String> countryCodes;
   final bool isRising;
   final DateTime detectedAt;
+  final String? previewUrl;
+  final String? coverUrl;
+  final int? duration;
 
   TrendingAudio({
     required this.id,
@@ -61,6 +64,9 @@ class TrendingAudio {
     this.countryCodes = const [],
     this.isRising = false,
     required this.detectedAt,
+    this.previewUrl,
+    this.coverUrl,
+    this.duration,
   });
 
   factory TrendingAudio.fromJson(Map<String, dynamic> json) {
@@ -75,7 +81,12 @@ class TrendingAudio {
               .toList() ??
           [],
       isRising: json['is_rising'] as bool? ?? false,
-      detectedAt: DateTime.parse(json['detected_at'] as String),
+      detectedAt: DateTime.parse(
+        (json['detected_at'] ?? json['updated_at']) as String,
+      ),
+      previewUrl: json['preview_url'] as String?,
+      coverUrl: json['cover_url'] as String?,
+      duration: json['duration'] as int?,
     );
   }
 
@@ -89,6 +100,9 @@ class TrendingAudio {
       'country_codes': countryCodes,
       'is_rising': isRising,
       'detected_at': detectedAt.toIso8601String(),
+      'preview_url': previewUrl,
+      'cover_url': coverUrl,
+      'duration': duration,
     };
   }
 }

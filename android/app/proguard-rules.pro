@@ -21,3 +21,7 @@
 -keepattributes *Annotation*
 -keepattributes Signature
 -keepattributes InnerClasses
+
+# Google Play Core (deferred components) — ignore if not used
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }

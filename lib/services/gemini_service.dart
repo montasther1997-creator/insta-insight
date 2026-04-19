@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../config/gemini_config.dart';
@@ -19,7 +20,7 @@ class GeminiService {
     );
   }
 
-  /// Analyze account and return structured JSON
+  /// Analyze account and return structured JSON with deep insights
   Future<Map<String, dynamic>> analyzeAccount({
     required String username,
     required int followers,
@@ -28,10 +29,15 @@ class GeminiService {
     required String topCity,
     required int bestPostViews,
     required int avgViews,
+    int totalPosts = 0,
+    int videoPosts = 0,
+    int photoPosts = 0,
+    int carouselPosts = 0,
+    double monthlyGrowth = 0.0,
   }) async {
     final prompt = '''
-أنت محلل سوشيال ميديا متخصص في السوق العربي.
-حلل بيانات حساب إنستغرام التالية وأجب بالعربي فقط.
+أنت محلل سوشيال ميديا متخصص في السوق العربي لديك خبرة 10 سنوات.
+حلل بيانات حساب إنستغرام التالية بعمق وأجب بالعربي فقط.
 
 معلومات الحساب:
 - اسم المستخدم: $username
@@ -41,22 +47,37 @@ class GeminiService {
 - أكثر مدينة متابعين: $topCity
 - أفضل فيديو: $bestPostViews مشاهدة
 - متوسط المشاهدات: $avgViews
+- إجمالي المنشورات: $totalPosts
+- فيديوهات: $videoPosts
+- صور: $photoPosts
+- كاروسيل: $carouselPosts
+- النمو الشهري: $monthlyGrowth%
 
 أعطني JSON بهذا الشكل بالضبط:
 {
-  "score": (رقم من 1 إلى 10),
-  "summary": "(ملخص 2 جملة عن الحساب)",
-  "strengths": ["نقطة قوة 1", "نقطة قوة 2", "نقطة قوة 3"],
-  "weaknesses": ["نقطة ضعف 1", "نقطة ضعف 2"],
-  "best_post_time": "(أفضل وقت نشر بالتوقيت المحلي)",
-  "alert": "(تنبيه مهم واحد للمستخدم)",
+  "score": (رقم من 1 إلى 10 بناءً على تفاعل حقيقي ومتابعين),
+  "summary": "(ملخص عميق 3 جمل عن الحساب ومجاله ومستوى أدائه)",
+  "niche": "(تحديد المجال: فاشن/طعام/رياضة/تعليم/ترفيه/ميم/عائلي/دين/الخ)",
+  "strengths": ["نقطة قوة محددة 1", "نقطة قوة محددة 2", "نقطة قوة محددة 3"],
+  "weaknesses": ["نقطة ضعف قابلة للإصلاح 1", "نقطة ضعف 2", "نقطة ضعف 3"],
+  "best_post_time": "(أفضل وقت نشر بالتوقيت المحلي للدولة الأعلى متابعة)",
+  "alert": "(تنبيه مهم فوري للمستخدم يحتاج عمل)",
+  "hook_tips": ["نصيحة هوك للثواني 3 الأولى 1", "نصيحة 2", "نصيحة 3"],
+  "retention_tips": ["كيف يحتفظ بالمشاهد 1", "نصيحة 2"],
+  "growth_forecast_30d": (توقع رقم متابعين جدد خلال 30 يوم),
+  "growth_forecast_90d": (توقع رقم متابعين جدد خلال 90 يوم),
+  "realistic_goal_month": "(هدف شهري واقعي وعملي)",
   "content_ideas": [
+    {"title": "عنوان الفكرة", "description": "وصف قصير", "priority": "high"},
     {"title": "عنوان الفكرة", "description": "وصف قصير", "priority": "high"},
     {"title": "عنوان الفكرة", "description": "وصف قصير", "priority": "medium"},
     {"title": "عنوان الفكرة", "description": "وصف قصير", "priority": "medium"},
-    {"title": "عنوان الفكرة", "description": "وصف قصير", "priority": "low"},
     {"title": "عنوان الفكرة", "description": "وصف قصير", "priority": "low"}
-  ]
+  ],
+  "market_benchmarks": {
+    "avg_engagement_in_niche": (متوسط تفاعل المجال),
+    "user_vs_avg": "(أعلى/أقل/مساوي لمتوسط المجال)"
+  }
 }
 
 مهم: الرد JSON فقط بدون أي نص إضافي.
@@ -74,16 +95,19 @@ class GeminiService {
     required double engagementRate,
     required String caption,
   }) async {
+    final viewsLine = views > 0
+        ? '- المشاهدات: $views'
+        : '- المشاهدات: غير متاحة (لا تستنتج أن المنشور لم يصل لأحد — API لم يُرجع هذه البيانة فقط)';
     final prompt = '''
 أنت محلل محتوى إنستغرام. حلل هذا المنشور بجملة واحدة فقط بالعربي:
 - النوع: $mediaType
 - الإعجابات: $likes
 - التعليقات: $comments
-- المشاهدات: $views
+$viewsLine
 - نسبة التفاعل: $engagementRate%
 - النص: $caption
 
-اكتب جملة واحدة فقط تشرح سبب نجاح أو ضعف هذا المنشور.
+اكتب جملة واحدة فقط تشرح سبب نجاح أو ضعف هذا المنشور بناءً على الإعجابات والتعليقات والنص — بدون افتراض الفشل بسبب غياب بيانات المشاهدات.
 ''';
 
     try {
@@ -116,50 +140,147 @@ class GeminiService {
     }
   }
 
-  /// Generate content suggestions
+  /// Generate 30 detailed content suggestions
   Future<List<Map<String, dynamic>>> generateSuggestions({
     required String username,
     required int followers,
     required String topCountry,
     required List<String> recentTopics,
+    String niche = 'عام',
   }) async {
     final prompt = '''
-أنت مستشار محتوى سوشيال ميديا للسوق العربي.
+أنت مستشار محتوى سوشيال ميديا محترف للسوق العربي.
 
 معلومات الحساب:
 - اسم المستخدم: $username
 - المتابعين: $followers
 - أكثر دولة: $topCountry
-- مواضيع حديثة: ${recentTopics.join(', ')}
+- المجال: $niche
+- مواضيع حديثة: ${recentTopics.take(5).join(', ')}
 
-أعطني JSON يحتوي 10 أفكار فيديو مخصصة بهذا الشكل:
+أعطني JSON يحتوي 30 فكرة فيديو مخصصة ومتنوعة بهذا الشكل:
 [
-  {"title": "عنوان الفكرة", "description": "وصف قصير", "reason": "سبب الاقتراح", "priority": "high/medium/low"}
+  {"title": "عنوان جذاب قصير", "description": "وصف مفصل مع هوك قوي", "reason": "سبب الاقتراح ولماذا سينجح", "priority": "high", "hashtags": "#هاشتاق1 #هاشتاق2 #هاشتاق3", "estimated_views": "تقدير المشاهدات"}
 ]
 
-مهم: الرد JSON فقط (مصفوفة) بدون أي نص إضافي.
+وزع الأولويات:
+- 10 فكرة high priority (ترند حالي وأعلى فرصة نجاح)
+- 15 فكرة medium priority (محتوى متنوع)
+- 5 فكرة low priority (تجريبي وإبداعي)
+
+مهم: الرد JSON فقط (مصفوفة من 30 فكرة) بدون أي نص إضافي.
 ''';
 
     try {
-      final result = await _generateJson(prompt, usePro: false);
-      if (result.containsKey('ideas')) {
-        return (result['ideas'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final response = await _flashModel.generateContent([Content.text(prompt)]);
+      final text = response.text ?? '[]';
+      final cleaned = _cleanJsonString(text);
+      final decoded = jsonDecode(cleaned);
+      if (decoded is List) {
+        return decoded.cast<Map<String, dynamic>>();
+      } else if (decoded is Map && decoded.containsKey('ideas')) {
+        return (decoded['ideas'] as List<dynamic>).cast<Map<String, dynamic>>();
       }
       return [];
     } catch (e) {
-      debugPrint('generateSuggestions first attempt failed: $e');
-      // Try parsing as array directly
-      try {
-        final response = await _flashModel.generateContent([Content.text(prompt)]);
-        final text = response.text ?? '[]';
-        final cleaned = _cleanJsonString(text);
-        final list = jsonDecode(cleaned) as List<dynamic>;
-        return list.cast<Map<String, dynamic>>();
-      } catch (e2) {
-        debugPrint('generateSuggestions fallback failed: $e2');
-        return [];
-      }
+      debugPrint('generateSuggestions error: $e');
+      return [];
     }
+  }
+
+  /// Analyze video performance (top videos, hook, retention)
+  Future<Map<String, dynamic>> analyzeVideoPerformance({
+    required List<Map<String, dynamic>> topVideos,
+    required int totalVideos,
+    required double avgEngagement,
+  }) async {
+    final prompt = '''
+أنت خبير تحليل فيديوهات إنستغرام. حلل أداء فيديوهات هذا الحساب.
+
+أفضل الفيديوهات:
+${jsonEncode(topVideos)}
+
+إجمالي الفيديوهات: $totalVideos
+متوسط التفاعل: $avgEngagement%
+
+أعطني JSON:
+{
+  "common_success_factors": ["سبب نجاح مشترك 1", "سبب 2", "سبب 3"],
+  "hook_analysis": "(تحليل الهوك في الثواني 3 الأولى)",
+  "retention_strategy": "(كيف يحافظ على المشاهد)",
+  "optimal_duration": "(المدة المثالية بالثواني)",
+  "best_words": ["كلمة جذابة 1", "كلمة 2", "كلمة 3"],
+  "best_hashtags": ["#هاشتاق1", "#هاشتاق2", "#هاشتاق3", "#هاشتاق4", "#هاشتاق5"],
+  "weak_videos_reason": "(لماذا بعض الفيديوهات فشلت)",
+  "improvement_tips": ["نصيحة تحسين 1", "نصيحة 2", "نصيحة 3"]
+}
+
+مهم: الرد JSON فقط بدون أي نص إضافي.
+''';
+
+    return _generateJson(prompt, usePro: false);
+  }
+
+  /// Generate weekly content plan
+  Future<Map<String, dynamic>> generateWeeklyPlan({
+    required String username,
+    required String niche,
+    required String topCountry,
+    required String bestPostTime,
+  }) async {
+    final prompt = '''
+أنت مخطط محتوى سوشيال ميديا. خطط أسبوع كامل لحساب "$username" في مجال "$niche" بدولة "$topCountry".
+
+أعطني JSON:
+{
+  "week_theme": "(موضوع عام للأسبوع)",
+  "days": [
+    {"day": "السبت", "content_type": "reel/post/story", "title": "عنوان", "description": "وصف", "best_time": "$bestPostTime", "expected_engagement": "عالي/متوسط"},
+    {"day": "الأحد", "content_type": "...", "title": "...", "description": "...", "best_time": "...", "expected_engagement": "..."},
+    {"day": "الإثنين", "content_type": "...", "title": "...", "description": "...", "best_time": "...", "expected_engagement": "..."},
+    {"day": "الثلاثاء", "content_type": "...", "title": "...", "description": "...", "best_time": "...", "expected_engagement": "..."},
+    {"day": "الأربعاء", "content_type": "...", "title": "...", "description": "...", "best_time": "...", "expected_engagement": "..."},
+    {"day": "الخميس", "content_type": "...", "title": "...", "description": "...", "best_time": "...", "expected_engagement": "..."},
+    {"day": "الجمعة", "content_type": "...", "title": "...", "description": "...", "best_time": "...", "expected_engagement": "..."}
+  ],
+  "expected_growth": "نمو متوقع للأسبوع",
+  "key_metrics": ["مقياس مهم 1", "مقياس 2"]
+}
+
+مهم: الرد JSON فقط بدون أي نص إضافي.
+''';
+
+    return _generateJson(prompt, usePro: false);
+  }
+
+  /// Generate auto-caption for a post idea
+  Future<Map<String, dynamic>> generateCaption({
+    required String postIdea,
+    required String niche,
+    required String tone,
+  }) async {
+    final prompt = '''
+أنت كاتب محتوى سوشيال ميديا محترف.
+اكتب كابشن جذاب بالعربي لفكرة منشور إنستغرام.
+
+الفكرة: $postIdea
+المجال: $niche
+الأسلوب: $tone
+
+أعطني JSON:
+{
+  "caption_short": "(كابشن قصير جذاب سطر واحد)",
+  "caption_medium": "(كابشن متوسط مع إيموجي وCTA)",
+  "caption_long": "(كابشن طويل قصصي مع هوك قوي في البداية)",
+  "hashtags": "#هاشتاق1 #هاشتاق2 #هاشتاق3 #هاشتاق4 #هاشتاق5 #هاشتاق6 #هاشتاق7 #هاشتاق8 #هاشتاق9 #هاشتاق10",
+  "cta": "(دعوة واضحة للتفاعل)",
+  "hook_variations": ["هوك 1", "هوك 2", "هوك 3"]
+}
+
+مهم: الرد JSON فقط بدون أي نص إضافي.
+''';
+
+    return _generateJson(prompt, usePro: false);
   }
 
   /// Weekly report using Pro model
@@ -176,11 +297,14 @@ ${jsonEncode(weeklyData)}
 أعطني JSON بهذا الشكل:
 {
   "overall_score": (1-10),
-  "summary": "ملخص الأسبوع",
-  "highlights": ["إنجاز 1", "إنجاز 2"],
-  "areas_to_improve": ["نقطة 1", "نقطة 2"],
-  "next_week_plan": ["خطة 1", "خطة 2", "خطة 3"],
-  "competitor_gap": "فجوة المحتوى مقارنة بالمنافسين"
+  "summary": "ملخص الأسبوع بثلاث جمل",
+  "highlights": ["إنجاز 1", "إنجاز 2", "إنجاز 3"],
+  "areas_to_improve": ["نقطة 1", "نقطة 2", "نقطة 3"],
+  "next_week_plan": ["خطة 1", "خطة 2", "خطة 3", "خطة 4"],
+  "competitor_gap": "فجوة المحتوى مقارنة بالمنافسين",
+  "best_post_of_week": "وصف أفضل منشور ولماذا",
+  "engagement_trend": "صاعد/ثابت/هابط مع نسبة",
+  "recommendation": "توصية رئيسية للأسبوع القادم"
 }
 
 مهم: الرد JSON فقط بدون أي نص إضافي.
@@ -193,7 +317,8 @@ ${jsonEncode(weeklyData)}
   Future<List<TrendingAudio>> suggestTrendingAudio({required String region}) async {
     final prompt = '''
 أنت خبير في اتجاهات الموسيقى على إنستغرام ريلز في المنطقة العربية.
-أعطني قائمة بـ 10 أغاني ترند حالياً في "$region" على إنستغرام ريلز.
+أعطني قائمة بـ 20 أغنية ترند حالياً في "$region" على إنستغرام ريلز/TikTok.
+تنوّع بين العربي والإنجليزي، واذكر أغاني معروفة حالياً (2024-2026) حتى يصير الـ iTunes preview متوفر.
 
 أعطني JSON مصفوفة بهذا الشكل بالضبط:
 [
@@ -215,7 +340,9 @@ ${jsonEncode(weeklyData)}
       final text = response.text ?? '[]';
       final cleaned = _cleanJsonString(text);
       final list = jsonDecode(cleaned) as List<dynamic>;
-      return list.map((e) {
+      // Build bare tracks first, then enrich with iTunes Search API in parallel
+      // to fetch real preview_url + cover artwork — Gemini only gives names.
+      final bare = list.map((e) {
         final map = e as Map<String, dynamic>;
         return TrendingAudio(
           id: 'gemini_${list.indexOf(e)}',
@@ -231,10 +358,67 @@ ${jsonEncode(weeklyData)}
           detectedAt: DateTime.now(),
         );
       }).toList();
+      return await _enrichWithItunes(bare);
     } catch (e) {
       debugPrint('suggestTrendingAudio error: $e');
       return [];
     }
+  }
+
+  /// Look up `previewUrl` + `coverUrl` for each track via iTunes Search API
+  /// (free, no auth). Done in parallel so the UI gets playable tracks fast.
+  Future<List<TrendingAudio>> _enrichWithItunes(
+      List<TrendingAudio> tracks) async {
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 4),
+      receiveTimeout: const Duration(seconds: 4),
+    ));
+    final futures = tracks.map((t) async {
+      if ((t.previewUrl?.isNotEmpty ?? false) &&
+          (t.coverUrl?.isNotEmpty ?? false)) {
+        return t;
+      }
+      final query = '${t.artistName} ${t.audioName}'.trim();
+      if (query.isEmpty) return t;
+      try {
+        final r = await dio.get(
+          'https://itunes.apple.com/search',
+          queryParameters: {
+            'term': query,
+            'media': 'music',
+            'entity': 'song',
+            'limit': 1,
+          },
+        );
+        final results = (r.data['results'] as List?) ?? const [];
+        if (results.isEmpty) return t;
+        final hit = results.first as Map<String, dynamic>;
+        final previewUrl = hit['previewUrl'] as String?;
+        // Upscale the 100x100 artwork to 600x600 — iTunes serves a predictable
+        // URL pattern so we swap the size in place.
+        final art = hit['artworkUrl100'] as String?;
+        final coverUrl = art?.replaceAll('100x100bb', '600x600bb');
+        return TrendingAudio(
+          id: t.id,
+          audioName: t.audioName,
+          artistName: t.artistName,
+          usageCount: t.usageCount,
+          growthRate: t.growthRate,
+          countryCodes: t.countryCodes,
+          isRising: t.isRising,
+          detectedAt: t.detectedAt,
+          previewUrl: previewUrl ?? t.previewUrl,
+          coverUrl: coverUrl ?? t.coverUrl,
+          duration: (hit['trackTimeMillis'] as num?) != null
+              ? ((hit['trackTimeMillis'] as num) ~/ 1000).toInt()
+              : t.duration,
+        );
+      } catch (e) {
+        debugPrint('iTunes lookup failed for "$query": $e');
+        return t;
+      }
+    });
+    return Future.wait(futures);
   }
 
   /// Internal: generate JSON from Gemini

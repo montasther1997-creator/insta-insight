@@ -15,7 +15,7 @@ class InstagramService {
     final response = await _dio.get(
       endpoint,
       queryParameters: {
-        'fields': 'id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count',
+        'fields': 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count',
         'limit': limit,
         'access_token': accessToken,
       },
@@ -25,39 +25,73 @@ class InstagramService {
     return data.cast<Map<String, dynamic>>();
   }
 
-  /// Fetch insights for a specific media
+  /// Fetch insights for a specific media — returns views/reach/shares/saves when available.
+  ///
+  /// Instagram renamed `plays`/`video_views` → `views` in 2024 (Graph API v21+).
+  /// Older Business accounts may still only respond to `plays`. We try the
+  /// modern metric set first and fall back progressively so the caller always
+  /// gets whatever data the account supports.
   Future<Map<String, dynamic>> fetchMediaInsights(
     String mediaId,
     String accessToken, {
     required String mediaType,
   }) async {
-    final metrics = mediaType == 'VIDEO' || mediaType == 'REELS'
-        ? 'plays,reach,total_interactions'
-        : 'reach,impressions,total_interactions';
+    final isVideo = mediaType == 'VIDEO' || mediaType == 'REELS';
 
-    try {
-      final response = await _dio.get(
-        '${InstagramConfig.graphUrl}/$mediaId/insights',
-        queryParameters: {
-          'metric': metrics,
-          'access_token': accessToken,
-        },
-      );
+    // Try each metric set in order; the first that succeeds wins.
+    final attempts = <String>[
+      if (isVideo) 'views,reach,shares,saved,total_interactions',
+      if (isVideo) 'plays,reach,shares,saved,total_interactions',
+      'views,reach,shares,saved,total_interactions',
+      'reach,shares,saved,total_interactions',
+      'reach,shares,saved',
+      'reach',
+    ];
 
-      final insightsData = response.data['data'] as List<dynamic>;
-      final result = <String, dynamic>{};
-      for (final insight in insightsData) {
-        final name = insight['name'] as String;
-        final values = insight['values'] as List<dynamic>;
-        if (values.isNotEmpty) {
-          result[name] = values[0]['value'];
+    for (final metrics in attempts) {
+      try {
+        final response = await _dio.get(
+          '${InstagramConfig.graphUrl}/$mediaId/insights',
+          queryParameters: {
+            'metric': metrics,
+            'access_token': accessToken,
+          },
+        );
+
+        final insightsData = response.data['data'] as List<dynamic>;
+        final result = <String, dynamic>{};
+        for (final insight in insightsData) {
+          final name = insight['name'] as String;
+          final values = insight['values'] as List<dynamic>;
+          if (values.isNotEmpty) {
+            result[name] = values[0]['value'];
+          }
         }
+        if (result.isNotEmpty) return result;
+      } catch (e) {
+        debugPrint(
+            'fetchMediaInsights attempt failed for $mediaId ($metrics): $e');
       }
-      return result;
-    } catch (e) {
-      debugPrint('fetchMediaInsights error for $mediaId: $e');
-      return {};
     }
+    return {};
+  }
+
+  /// Fetch media list and enrich each item with insights (views, shares, saves).
+  /// Runs insights in parallel to keep the total request time short.
+  Future<List<Map<String, dynamic>>> fetchUserMediaWithInsights(
+    String accessToken, {
+    String? igUserId,
+    int limit = 50,
+  }) async {
+    final media = await fetchUserMedia(accessToken, igUserId: igUserId, limit: limit);
+    final futures = media.map((m) async {
+      final type = m['media_type'] as String? ?? 'IMAGE';
+      final id = m['id'] as String?;
+      if (id == null) return m;
+      final insights = await fetchMediaInsights(id, accessToken, mediaType: type);
+      return {...m, '_insights': insights};
+    });
+    return Future.wait(futures);
   }
 
   /// Fetch user's account insights (followers demographics)
@@ -122,20 +156,46 @@ class InstagramService {
     }
   }
 
-  /// Parse raw media data into PostModel list
+  /// Parse raw media data into PostModel list.
+  /// Items enriched by `fetchUserMediaWithInsights` carry an `_insights` map
+  /// with views/shares/saves from the Graph API; when absent we keep zeros.
   List<PostModel> parseMediaToModels(
     List<Map<String, dynamic>> mediaList,
     String userId,
   ) {
     return mediaList.map((media) {
+      final insights = (media['_insights'] as Map<String, dynamic>?) ?? const {};
+      // Instagram renamed `plays` → `views` in 2024. Accept either; fall back
+      // to `reach` (unique viewers) so we never falsely report 0 views.
+      final plays = (insights['views'] as num?)?.toInt() ??
+          (insights['plays'] as num?)?.toInt() ??
+          (insights['reach'] as num?)?.toInt() ??
+          0;
+      final shares = (insights['shares'] as num?)?.toInt() ?? 0;
+      final saved = (insights['saved'] as num?)?.toInt() ?? 0;
+      final likes = media['like_count'] as int? ?? 0;
+      final comments = media['comments_count'] as int? ?? 0;
+      // Engagement rate: interactions / reach-or-views, expressed as percent.
+      // Falls back to 0 when the API didn't return a denominator so we don't
+      // divide by zero or invent a rate.
+      final totalEng = likes + comments + shares + saved;
+      final engagementRate =
+          plays > 0 ? (totalEng / plays) * 100.0 : 0.0;
       return PostModel(
         id: '',
         userId: userId,
         postId: media['id'] as String,
         mediaType: media['media_type'] as String? ?? 'IMAGE',
         thumbnailUrl: (media['thumbnail_url'] ?? media['media_url'] ?? '') as String,
-        likesCount: media['like_count'] as int? ?? 0,
-        commentsCount: media['comments_count'] as int? ?? 0,
+        mediaUrl: (media['media_url'] as String?) ?? '',
+        caption: (media['caption'] as String?) ?? '',
+        permalink: (media['permalink'] as String?) ?? '',
+        viewsCount: plays,
+        likesCount: likes,
+        commentsCount: comments,
+        sharesCount: shares,
+        savesCount: saved,
+        engagementRate: engagementRate,
         postedAt: media['timestamp'] != null
             ? DateTime.parse(media['timestamp'] as String)
             : null,

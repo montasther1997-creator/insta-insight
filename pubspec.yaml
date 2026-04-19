@@ -47,6 +47,9 @@ dependencies:
   timeago: ^3.6.0
   flutter_dotenv: ^5.1.0
 
+  # Audio playback (trending track previews)
+  audioplayers: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

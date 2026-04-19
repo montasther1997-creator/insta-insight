@@ -23,7 +23,10 @@ final mediaProvider = FutureProvider<List<PostModel>>((ref) async {
 
   try {
     final service = ref.read(instagramServiceProvider);
-    final rawMedia = await service.fetchUserMedia(user.accessToken, igUserId: user.instagramId);
+    final rawMedia = await service.fetchUserMediaWithInsights(
+      user.accessToken,
+      igUserId: user.instagramId,
+    );
     final posts = service.parseMediaToModels(rawMedia, user.id);
 
     await cache.cacheInstagramData(
@@ -250,30 +253,169 @@ final geoCitiesProvider = Provider<List<Map<String, dynamic>>>((ref) {
 });
 
 /// Provider for posting heatmap data based on actual post timestamps
+/// Weighted by engagement so slot intensity = best PERFORMING time, not just most posted
 final postingHeatmapProvider = Provider<Map<String, double>>((ref) {
   final posts = ref.watch(mediaProvider).valueOrNull ?? [];
   if (posts.isEmpty) return {};
 
-  // Count posts per day-hour slot
-  final counts = <String, int>{};
-  int maxCount = 0;
+  final engagementSum = <String, int>{};
+  int maxEngagement = 0;
 
   for (final post in posts) {
     if (post.postedAt == null) continue;
-    // Convert to Saturday-based week (0=Saturday)
     final weekday = (post.postedAt!.weekday + 1) % 7;
     final hour = post.postedAt!.hour;
     final key = '$weekday-$hour';
-    counts[key] = (counts[key] ?? 0) + 1;
-    if (counts[key]! > maxCount) maxCount = counts[key]!;
+    final eng = post.totalEngagement.clamp(1, 1 << 30);
+    engagementSum[key] = (engagementSum[key] ?? 0) + eng;
+    if (engagementSum[key]! > maxEngagement) maxEngagement = engagementSum[key]!;
   }
 
-  if (maxCount == 0) return {};
+  if (maxEngagement == 0) return {};
 
-  // Normalize to 0.0-1.0 range
   final normalized = <String, double>{};
-  for (final entry in counts.entries) {
-    normalized[entry.key] = entry.value / maxCount;
+  for (final entry in engagementSum.entries) {
+    normalized[entry.key] = entry.value / maxEngagement;
   }
   return normalized;
+});
+
+/// Best performing weekday (0=Saturday, 6=Friday)
+final bestPostingDayProvider = Provider<Map<String, dynamic>>((ref) {
+  final posts = ref.watch(mediaProvider).valueOrNull ?? [];
+  if (posts.isEmpty) return {'day': 'غير محدد', 'engagement': 0};
+
+  final engagementByDay = <int, int>{};
+  final countByDay = <int, int>{};
+
+  for (final post in posts) {
+    if (post.postedAt == null) continue;
+    final day = (post.postedAt!.weekday + 1) % 7;
+    engagementByDay[day] = (engagementByDay[day] ?? 0) + post.totalEngagement;
+    countByDay[day] = (countByDay[day] ?? 0) + 1;
+  }
+
+  if (engagementByDay.isEmpty) return {'day': 'غير محدد', 'engagement': 0};
+
+  int bestDay = 0;
+  double bestAvg = 0;
+  engagementByDay.forEach((day, total) {
+    final avg = total / (countByDay[day] ?? 1);
+    if (avg > bestAvg) {
+      bestAvg = avg;
+      bestDay = day;
+    }
+  });
+
+  const dayNames = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+  return {'day': dayNames[bestDay], 'engagement': bestAvg.round()};
+});
+
+/// Best performing hour of day
+final bestPostingHourProvider = Provider<Map<String, dynamic>>((ref) {
+  final posts = ref.watch(mediaProvider).valueOrNull ?? [];
+  if (posts.isEmpty) return {'hour': 'غير محدد', 'engagement': 0};
+
+  final engByHour = <int, int>{};
+  final countByHour = <int, int>{};
+
+  for (final post in posts) {
+    if (post.postedAt == null) continue;
+    final hour = post.postedAt!.hour;
+    engByHour[hour] = (engByHour[hour] ?? 0) + post.totalEngagement;
+    countByHour[hour] = (countByHour[hour] ?? 0) + 1;
+  }
+
+  if (engByHour.isEmpty) return {'hour': 'غير محدد', 'engagement': 0};
+
+  int bestHour = 0;
+  double bestAvg = 0;
+  engByHour.forEach((hour, total) {
+    final avg = total / (countByHour[hour] ?? 1);
+    if (avg > bestAvg) {
+      bestAvg = avg;
+      bestHour = hour;
+    }
+  });
+
+  final display = bestHour == 0
+      ? '12 ص'
+      : bestHour < 12
+          ? '$bestHour ص'
+          : bestHour == 12
+              ? '12 م'
+              : '${bestHour - 12} م';
+  return {'hour': display, 'engagement': bestAvg.round()};
+});
+
+/// Optimal posting frequency (posts per week average based on history)
+final postingFrequencyProvider = Provider<double>((ref) {
+  final posts = ref.watch(mediaProvider).valueOrNull ?? [];
+  if (posts.length < 2) return 0;
+
+  final sorted = [...posts]
+    ..removeWhere((p) => p.postedAt == null)
+    ..sort((a, b) => a.postedAt!.compareTo(b.postedAt!));
+
+  if (sorted.length < 2) return 0;
+
+  final span = sorted.last.postedAt!.difference(sorted.first.postedAt!);
+  final weeks = span.inDays / 7.0;
+  if (weeks <= 0) return sorted.length.toDouble();
+  return sorted.length / weeks;
+});
+
+/// Top hashtags extracted from post captions, ranked by total engagement
+/// earned across all posts that used the tag. Returns [{tag, count, engagement}].
+final topHashtagsProvider = Provider<List<Map<String, dynamic>>>((ref) {
+  final posts = ref.watch(mediaProvider).valueOrNull ?? [];
+  if (posts.isEmpty) return [];
+
+  final byTag = <String, Map<String, int>>{};
+  for (final p in posts) {
+    for (final tag in p.hashtags) {
+      final key = tag.toLowerCase();
+      final entry = byTag.putIfAbsent(key, () => {'count': 0, 'engagement': 0});
+      entry['count'] = entry['count']! + 1;
+      entry['engagement'] = entry['engagement']! + p.totalEngagement;
+    }
+  }
+
+  final list = byTag.entries
+      .map((e) => {
+            'tag': e.key,
+            'count': e.value['count']!,
+            'engagement': e.value['engagement']!,
+          })
+      .toList()
+    ..sort((a, b) => (b['engagement'] as int).compareTo(a['engagement'] as int));
+  return list;
+});
+
+/// Media type distribution
+final mediaTypeDistributionProvider = Provider<Map<String, Map<String, num>>>((ref) {
+  final posts = ref.watch(mediaProvider).valueOrNull ?? [];
+  if (posts.isEmpty) return {};
+
+  final stats = <String, Map<String, num>>{
+    'REELS': {'count': 0, 'engagement': 0, 'views': 0},
+    'VIDEO': {'count': 0, 'engagement': 0, 'views': 0},
+    'IMAGE': {'count': 0, 'engagement': 0, 'views': 0},
+    'CAROUSEL_ALBUM': {'count': 0, 'engagement': 0, 'views': 0},
+  };
+
+  for (final p in posts) {
+    final type = stats.containsKey(p.mediaType) ? p.mediaType : 'IMAGE';
+    stats[type]!['count'] = (stats[type]!['count'] as int) + 1;
+    stats[type]!['engagement'] = (stats[type]!['engagement'] as int) + p.totalEngagement;
+    stats[type]!['views'] = (stats[type]!['views'] as int) + p.viewsCount;
+  }
+
+  stats.forEach((type, s) {
+    final count = s['count'] as int;
+    s['avg_engagement'] = count > 0 ? (s['engagement'] as int) / count : 0;
+    s['avg_views'] = count > 0 ? (s['views'] as int) / count : 0;
+  });
+
+  return stats;
 });

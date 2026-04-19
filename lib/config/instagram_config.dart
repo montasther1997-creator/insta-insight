@@ -9,20 +9,23 @@ class InstagramConfig {
   static String get testToken => dotenv.env['INSTAGRAM_TEST_TOKEN'] ?? '';
   static bool get hasTestToken => testToken.isNotEmpty;
 
-  /// Facebook Login OAuth (required for Instagram Graph API)
-  static const String authUrl = 'https://www.facebook.com/v21.0/dialog/oauth';
-  static const String tokenUrl = 'https://graph.facebook.com/v21.0/oauth/access_token';
-  static const String graphUrl = 'https://graph.facebook.com/v21.0';
+  /// Instagram API with Instagram Login (direct Instagram OAuth)
+  static const String authUrl = 'https://www.instagram.com/oauth/authorize';
+  static const String tokenUrl = 'https://api.instagram.com/oauth/access_token';
+  static const String graphUrl = 'https://graph.instagram.com';
 
   static const List<String> scopes = [
-    'instagram_basic',
-    'instagram_manage_insights',
-    'pages_show_list',
-    'pages_read_engagement',
+    'instagram_business_basic',
+    'instagram_business_manage_insights',
   ];
 
   static String get authorizationUrl {
     final scope = scopes.join(',');
-    return '$authUrl?client_id=$appId&redirect_uri=$redirectUri&scope=$scope&response_type=code';
+    // NOTE: we deliberately drop `force_authentication=1`. Forcing re-auth
+    // routes the "Allow" redirect through Instagram's `l.instagram.com`
+    // link-shim, which renders blank in Chrome Custom Tabs on some Android
+    // browsers (notably Huawei) and never fires the scheme redirect. The
+    // normal flow redirects straight to `redirect_uri`.
+    return '$authUrl?enable_fb_login=0&client_id=$appId&redirect_uri=${Uri.encodeComponent(redirectUri)}&scope=$scope&response_type=code';
   }
 }

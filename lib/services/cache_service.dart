@@ -69,11 +69,19 @@ class CacheService {
 
   // Predefined cache keys
   static const String keyInstagramProfile = 'instagram_profile';
-  static const String keyInstagramMedia = 'instagram_media';
+  // Bumped to v2 — older caches had 0 views because we only requested the
+  // legacy `plays` metric. New fetches use the renamed `views` metric.
+  static const String keyInstagramMedia = 'instagram_media_v2';
   static const String keyGeminiAnalysis = 'gemini_analysis';
   static const String keyGeoData = 'geo_data';
-  static const String keyTrendingAudio = 'trending_audio';
+  // Bumped to v3 — thin Gemini snapshots (6-10 tracks) from a single-region
+  // fallback must be discarded; the provider now pulls up to 20 across 3
+  // regions so every refresh should reach the full list.
+  static const String keyTrendingAudio = 'trending_audio_v3';
   static const String keySuggestions = 'suggestions';
+  static const String keyVideoAnalysis = 'video_analysis';
+  static const String keyWeeklyPlan = 'weekly_plan';
+  static const String keyWeeklyReport = 'weekly_report';
 
   /// Cache Instagram data (6 hours)
   Future<void> cacheInstagramData(String key, dynamic data) async {
